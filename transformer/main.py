@@ -3,61 +3,32 @@ import pandas as pd
 import yfinance as yf
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.model_selection import train_test_split
+import numpy as np
+from datetime import datetime, timedelta
+import json
 
-import csv
+###############################
+# 유틸리티 및 공통 함수들
+###############################
 
+# JSON 직렬화를 위한 함수
+def convert_to_serializable(obj):
+    if isinstance(obj, torch.Tensor):
+        return obj.cpu().numpy().tolist()
+    return obj
 
-
-
-# 1. 데이터 다운로드
+# yfinance를 통해 데이터를 다운로드
 def fetch_data(ticker, start_date, end_date):
     data = yf.download(ticker, start=start_date, end=end_date)
     return data
 
-# 애플(AAPL) 데이터 다운로드
-ticker = "NVDA"
-start_date = "2022-01-02"
-end_date = "2025-01-02"
-raw_data = fetch_data(ticker, start_date, end_date)
+###############################
+# Dataset 및 모델 정의
+###############################
 
-# 2. 필요한 열 선택
-processed_data = raw_data[['Close', 'Volume']].copy()
-
-# 특성 생성
-processed_data.loc[:, 'SMA_20'] = processed_data['Close'].rolling(window=20).mean()  # 20일 단기 이동평균
-processed_data.loc[:, 'SMA_50'] = processed_data['Close'].rolling(window=50).mean()  # 50일 이동평균
-processed_data.loc[:, 'EMA_20'] = processed_data['Close'].ewm(span=20, adjust=False).mean()  # 20일 지수이동평균
-processed_data.loc[:, 'RSI'] = 100 - (100 / (1 + ((processed_data['Close'].diff(1).gt(0).rolling(window=14).sum()) /
-                                 (processed_data['Close'].diff(1).lt(0).rolling(window=14).sum()))))  # RSI 계산
-processed_data.loc[:, 'MACD'] = processed_data['Close'].ewm(span=12, adjust=False).mean() - processed_data['Close'].ewm(span=26, adjust=False).mean()  # MACD
-processed_data.loc[:, 'MACD_signal'] = processed_data['MACD'].ewm(span=9, adjust=False).mean()  # MACD Signal Line
-
-
-# 볼린저 밴드
-rolling_std = processed_data['Close'].rolling(window=20).std()
-rolling_std = rolling_std.squeeze()
-
-processed_data['BB_upper'] = processed_data['SMA_20'] + (rolling_std * 2)
-processed_data['BB_lower'] = processed_data['SMA_20'] - (rolling_std * 2)
-processed_data['volume'] = processed_data['Volume']
-
-# 3. 결측치 처리
-processed_data.dropna(inplace=True)
-
-# 4. 특성 데이터 준비 (X)
-features = ['Close', 'SMA_20', 'SMA_50', 'EMA_20', 'RSI', 'MACD', 'MACD_signal', 'BB_upper', 'BB_lower', 'Volume']
-X = processed_data[features].values
-
-# 정규화 (MinMaxScaler)
-scaler = MinMaxScaler(feature_range=(0, 1))
-X_scaled = scaler.fit_transform(X)
-
-# 5. Dataset 클래스 정의
 class StockDataset(Dataset):
     def __init__(self, data, seq_len, pred_len):
         self.data = data
@@ -65,42 +36,15 @@ class StockDataset(Dataset):
         self.pred_len = pred_len
 
     def __len__(self):
-        return len(self.data) - self.seq_len - self.pred_len + 1
+        dataset_length = len(self.data) - self.seq_len - self.pred_len + 1
+        return max(0, dataset_length)
 
     def __getitem__(self, idx):
-        x = self.data[idx:idx + self.seq_len]
-        y = self.data[idx + self.seq_len:idx + self.seq_len + self.pred_len]
+        x = self.data[idx: idx + self.seq_len]
+        y = self.data[idx + self.seq_len: idx + self.seq_len + self.pred_len]
         return torch.tensor(x, dtype=torch.float32), torch.tensor(y, dtype=torch.float32)
 
 
-# Dataset 생성
-seq_len = 60  # 과거 60일치 데이터를 입력으로
-pred_len = 5  # 앞으로 5일치 데이터를 예측
-dataset = StockDataset(X_scaled, seq_len, pred_len)
-
-# DataLoader 생성
-batch_size = 32
-dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=True)
-
-# 1. 데이터를 훈련 데이터와 테스트 데이터로 나누기
-train_size = 0.8  # 80%를 훈련 데이터로, 20%를 테스트 데이터로
-train_data, test_data = train_test_split(X_scaled, train_size=train_size, shuffle=False)
-
-# 2. 훈련용 및 테스트용 데이터셋 생성
-train_dataset = StockDataset(train_data, seq_len, pred_len)
-test_dataset = StockDataset(test_data, seq_len, pred_len)
-
-# 3. DataLoader 생성
-train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
-
-# # 데이터 확인
-# for x, y in dataloader:
-#     print(f"X shape: {x.shape}, Y shape: {y.shape}")
-#     break
-
-
-# 6. 모델 정의
 class moving_avg(nn.Module):
     def __init__(self, kernel_size, stride):
         super(moving_avg, self).__init__()
@@ -135,24 +79,20 @@ class Model(nn.Module):
         kernel_size = 25
         self.decompsition = series_decomp(kernel_size)
         self.individual = configs.individual
-        self.channels = configs.enc_in
-
+        self.channels = configs.enc_in  # 여기서는 1
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
-            self.Linear_Decoder = nn.ModuleList()
             for i in range(self.channels):
-                self.Linear_Seasonal.append(nn.Linear(self.seq_len, self.pred_len))
-                self.Linear_Seasonal[i].weight = nn.Parameter(
-                    (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
-                self.Linear_Trend.append(nn.Linear(self.seq_len, self.pred_len))
-                self.Linear_Trend[i].weight = nn.Parameter(
-                    (1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
-                self.Linear_Decoder.append(nn.Linear(self.seq_len, self.pred_len))
+                lin_s = nn.Linear(self.seq_len, self.pred_len)
+                lin_s.weight = nn.Parameter((1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                self.Linear_Seasonal.append(lin_s)
+                lin_t = nn.Linear(self.seq_len, self.pred_len)
+                lin_t.weight = nn.Parameter((1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
+                self.Linear_Trend.append(lin_t)
         else:
             self.Linear_Seasonal = nn.Linear(self.seq_len, self.pred_len)
             self.Linear_Trend = nn.Linear(self.seq_len, self.pred_len)
-            self.Linear_Decoder = nn.Linear(self.seq_len, self.pred_len)
             self.Linear_Seasonal.weight = nn.Parameter((1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
             self.Linear_Trend.weight = nn.Parameter((1 / self.seq_len) * torch.ones([self.pred_len, self.seq_len]))
 
@@ -170,130 +110,225 @@ class Model(nn.Module):
         else:
             seasonal_output = self.Linear_Seasonal(seasonal_init)
             trend_output = self.Linear_Trend(trend_init)
-
         x = seasonal_output + trend_output
-        return x.permute(0, 2, 1)  # to [Batch, Output length, Channel]
+        return x.permute(0, 2, 1)  # [Batch, pred_len, Channel]
 
 
-# 7. Configs 클래스 설정
 class Configs:
-    seq_len = seq_len  # 입력 길이
-    pred_len = pred_len  # 예측 길이
-    individual = False  # False: 채널 공통 모델, True: 채널별 모델
-    enc_in = len(features)  # 동적으로 설정된 입력 채널 수
-
-# 모델 초기화
-configs = Configs()
-model = Model(configs)
-model = model.to("cuda" if torch.cuda.is_available() else "cpu")
-
-# 손실 함수 및 옵티마이저
-criterion = torch.nn.MSELoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+    def __init__(self, seq_len, pred_len, individual, enc_in):
+        self.seq_len = seq_len
+        self.pred_len = pred_len
+        self.individual = individual
+        self.enc_in = enc_in
 
 
-# 8. 학습 루프
-num_epochs = 20
-device = "cuda" if torch.cuda.is_available() else "cpu"
-
-# 모델을 훈련 모드로 설정
-model.train()
-for epoch in range(num_epochs):
-    epoch_loss = 0.0
-    for x, y in train_dataloader:  # train_dataloader로 훈련 데이터 사용
-        x, y = x.to(device), y.to(device)
-
-        # Forward pass
-        output = model(x)
-
-        # 손실 계산
-        loss = criterion(output, y)
-        epoch_loss += loss.item()
-
-        # Backward pass 및 가중치 업데이트
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-
-    print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {epoch_loss/len(train_dataloader):.4f}")
-
-# 9. 평가
-# 모델을 평가 모드로 설정
-model.eval()
-test_loss = 0.0
-with torch.no_grad():
-    for x, y in test_dataloader:  # test_dataloader로 테스트 데이터 사용
-        x, y = x.to(device), y.to(device)
-
-        # Forward pass
-        predictions = model(x)
-
-        # 손실 계산
-        loss = criterion(predictions, y)
-        test_loss += loss.item()
-
-        # 출력 (예: 예측 값과 실제 값 출력)
-        print(f"Predictions: {predictions}")
-        print(f"Ground Truth: {y}")
-
-
-        # 3D → 2D 변환: (batch_size, pred_len, feature_dim) → (batch_size * pred_len, feature_dim)
-        predictions_2d = predictions.cpu().numpy().reshape(-1, len(features))
-        ground_truth_2d = y.cpu().numpy().reshape(-1, len(features))
-
-        # MinMaxScaler 역변환 (정규화 해제)
-        predicted_prices = scaler.inverse_transform(predictions_2d)
-        ground_truth_prices = scaler.inverse_transform(ground_truth_2d)
-
-        # 변환된 데이터를 다시 원래 3D로 재구성
-        predicted_prices = predicted_prices.reshape(-1, pred_len, len(features))
-        ground_truth_prices = ground_truth_prices.reshape(-1, pred_len, len(features))
-
-        print(f"Predicted Prices: {predicted_prices}")
-        print(f"Actual Prices: {ground_truth_prices}")
-
-
-# 테스트 손실 출력
-print(f"Test Loss: {test_loss / len(test_dataloader):.4f}")
-
-
-
-# CSV 파일 저장 경로
-csv_filename = "predictions_vs_ground_truth2.csv"
-
-# CSV 파일 헤더 생성
-headers = ["Day", "Type"] + features  # 컬럼명: 날짜 + (예측값 / 실제값) + 피처명
-
-# CSV 파일 생성
-with open(csv_filename, mode="w", newline="") as file:
-    writer = csv.writer(file)
-    writer.writerow(headers)  # 헤더 작성
-
-    # 모델 평가 (test_dataloader 사용)
+###############################
+# 평가 및 재학습 함수
+###############################
+# ticker 인자를 추가했습니다.
+def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataloader, num_epochs, device, ticker,
+                         retrain_threshold=0.05):
+    if len(dataloader) == 0:
+        print("테스트 데이터셋이 충분하지 않습니다. 평가를 건너뜁니다.")
+        return np.array([]), np.array([])
     model.eval()
+    total_loss = 0.0
+    predictions = []
+    ground_truth = []
     with torch.no_grad():
-        for x, y in test_dataloader:
+        for x, y in dataloader:
             x, y = x.to(device), y.to(device)
-            predictions = model(x)
+            output = model(x)
+            loss = criterion(output, y)
+            total_loss += loss.item()
+            predictions.append(output.cpu().numpy())
+            ground_truth.append(y.cpu().numpy())
+    print(f"Test Loss: {total_loss / len(dataloader):.4f}")
+    predictions = np.concatenate(predictions, axis=0)  # (num_samples, pred_len, 1)
+    ground_truth = np.concatenate(ground_truth, axis=0)
+    prediction_diff = np.abs(predictions - ground_truth)
+    max_diff = np.max(prediction_diff)
+    if max_diff > retrain_threshold:
+        print(f"Prediction error is too large ({max_diff:.4f}), retraining model...")
+        model.train()
+        for epoch in range(num_epochs):
+            epoch_loss = 0.0
+            for x, y in train_dataloader:
+                x, y = x.to(device), y.to(device)
+                output = model(x)
+                loss = criterion(output, y)
+                epoch_loss += loss.item()
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+            print(f"Retrain Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss / len(train_dataloader):.4f}")
+        torch.save(model.state_dict(), f"{ticker}_model_retrained.pth")
+        print(f"✅ 모델 재학습 완료! {ticker}_model_retrained.pth 저장됨.")
+    return predictions, ground_truth
 
-            # 3D → 2D 변환
-            predictions_2d = predictions.cpu().numpy().reshape(-1, len(features))
-            ground_truth_2d = y.cpu().numpy().reshape(-1, len(features))
 
-            # MinMaxScaler 역변환 (정규화 해제)
-            predicted_prices = scaler.inverse_transform(predictions_2d)
-            ground_truth_prices = scaler.inverse_transform(ground_truth_2d)
+###############################
+# JSON 저장 함수들
+###############################
 
-            # 저장할 데이터 리스트
-            data_to_write = []
+# Output File 1: 모든 히스토리 데이터 (차트용: open, high, low, close, volume)
+def save_json_file1(filename, raw_df):
+    json_data = {"ticker": None, "data": {}}
+    for date in raw_df.index.strftime("%Y-%m-%d"):
+        row = raw_df.loc[pd.to_datetime(date)]
+        hist = {
+            "open": round(float(row["Open"].iloc[0]) if hasattr(row["Open"], "iloc") else float(row["Open"]), 2),
+            "high": round(float(row["High"].iloc[0]) if hasattr(row["High"], "iloc") else float(row["High"]), 2),
+            "low": round(float(row["Low"].iloc[0]) if hasattr(row["Low"], "iloc") else float(row["Low"]), 2),
+            "close": round(float(row["Close"].iloc[0]) if hasattr(row["Close"], "iloc") else float(row["Close"]), 2),
+            "volume": int(row["Volume"].iloc[0]) if hasattr(row["Volume"], "iloc") else int(row["Volume"])
+        }
+        json_data["data"][date] = hist
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, indent=4, default=convert_to_serializable)
+    print(f"✅ JSON 파일 저장 완료: {filename}")
 
-            for day in range(pred_len):  # 예측 기간(5일)
-                pred_row = [day + 1, "Predicted"] + list(predicted_prices[day])
-                gt_row = [day + 1, "Actual"] + list(ground_truth_prices[day])
-                data_to_write.append(pred_row)
-                data_to_write.append(gt_row)
 
-            # CSV 파일에 저장
-            writer.writerows(data_to_write)
+# Output File 2: 예측 데이터
+# 형식: { ticker: 'AAPL', data: { 'YYYY-MM-DD': { prediction, actual_percentage, predict_percentage, market_capitalization, close }, ... } }
+def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
+    json_data = {"ticker": None, "data": {}}
+    for i, date in enumerate(dates):
+        dt = pd.to_datetime(date)
+        if dt in raw_df.index:
+            row = raw_df.loc[dt]
+            # 실제 종가
+            close_val = round(float(row["Close"].iloc[0]) if hasattr(row["Close"], "iloc") else float(row["Close"]), 2)
+            market_cap = int(round(close_val * shares_outstanding)) if shares_outstanding else None
+            # 전일 종가 구하기
+            prev_data = raw_df.loc[raw_df.index < dt]
+            if not prev_data.empty:
+                prev_close = float(prev_data.iloc[-1]["Close"].iloc[0]) if hasattr(prev_data.iloc[-1]["Close"], "iloc") else float(prev_data.iloc[-1]["Close"])
+                actual_percentage = round(((close_val - prev_close) / prev_close) * 100, 2)
+                prediction_val = round(float(predictions[i]), 2)
+                predict_percentage = round(((prediction_val - prev_close) / prev_close) * 100, 2)
+            else:
+                actual_percentage = None
+                predict_percentage = None
+            json_data["data"][date] = {
+                "prediction": round(float(predictions[i]), 2),
+                "actual_percentage": actual_percentage,
+                "predict_percentage": predict_percentage,
+                "market_capitalization": market_cap,
+                "close": close_val
+            }
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, indent=4, default=convert_to_serializable)
+    print(f"✅ JSON 파일 저장 완료: {filename}")
 
-print(f"CSV 파일 저장 완료: {csv_filename}")
+
+# Output File 3: stocks.json에 티커 리스트 저장
+def save_stocks_file(filename, tickers):
+    json_data = {"stocks": tickers}
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(json_data, f, indent=4)
+    print(f"✅ Stocks JSON 파일 저장 완료: {filename}")
+
+
+###############################
+# 전체 파이프라인 (티커별 처리)
+###############################
+
+def process_ticker(ticker, start_date, end_date):
+    print(f"\n========== Processing {ticker} ==========")
+    # 1. 데이터 다운로드
+    raw_data = fetch_data(ticker, start_date, end_date)
+    if raw_data.empty:
+        print(f"{ticker} 데이터가 없습니다.")
+        return
+    # 2. 발행 주식수 및 전처리
+    stock_obj = yf.Ticker(ticker)
+    shares_outstanding = stock_obj.info.get("sharesOutstanding", 0)
+    processed_data = raw_data[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
+    processed_data.dropna(inplace=True)
+    features_for_model = ['Close']
+    X = processed_data[features_for_model].values
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    X_scaled = scaler.fit_transform(X)
+
+    # 3. 데이터 분할 (train: 2020~ target_date-60, test: target_date의 60일 전부터)
+    seq_len = 60
+    pred_len = 1
+    target_date = pd.to_datetime("2025-01-01")
+    if target_date in processed_data.index:
+        target_loc = processed_data.index.get_loc(target_date)
+    else:
+        target_loc = processed_data.index.get_indexer([target_date], method='nearest')[0]
+    test_data = X_scaled[target_loc - seq_len:]
+    test_index = processed_data.index[target_loc - seq_len:]
+    train_data = X_scaled[:target_loc - seq_len]
+
+    train_dataset = StockDataset(train_data, seq_len, pred_len)
+    test_dataset = StockDataset(test_data, seq_len, pred_len)
+
+    batch_size = 32
+    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+
+    # 4. 모델 초기화 및 학습
+    configs = Configs(seq_len, pred_len, individual=False, enc_in=len(features_for_model))
+    model = Model(configs)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    model.to(device)
+    criterion = nn.MSELoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    num_epochs = 20
+    for epoch in range(num_epochs):
+        model.train()
+        epoch_loss = 0.0
+        for x, y in train_dataloader:
+            x, y = x.to(device), y.to(device)
+            output = model(x)
+            loss = criterion(output, y)
+            epoch_loss += loss.item()
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+        print(f"{ticker} - Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss / len(train_dataloader):.4f}")
+    torch.save(model.state_dict(), f"{ticker}_model.pth")
+    print(f"{ticker} 모델 저장됨: {ticker}_model.pth")
+
+    # 5. 평가 및 (필요시) 재학습
+    test_predictions, _ = evaluate_and_retrain(model, test_dataloader, criterion, optimizer, train_dataloader,
+                                               num_epochs, device, ticker)
+    test_predictions = test_predictions.squeeze()
+    test_predictions_original = scaler.inverse_transform(test_predictions.reshape(-1, 1)).squeeze()
+
+    # 6. 예측 날짜 설정: test_index[seq_len: ...]가 2025-01-01부터 시작하므로, 오늘 전날(어제)까지 필터링
+    pred_dates = test_index[seq_len: seq_len + len(test_dataset)]
+    pred_dates = pred_dates.strftime("%Y-%m-%d").tolist()
+    today = pd.to_datetime(datetime.today().strftime("%Y-%m-%d"))
+    yesterday = today - pd.Timedelta(days=1)
+    filtered_dates = []
+    filtered_predictions = []
+    for date, pred in zip(pred_dates, test_predictions_original):
+        dt = pd.to_datetime(date)
+        if dt <= yesterday:
+            filtered_dates.append(date)
+            filtered_predictions.append(pred)
+    pred_dates = filtered_dates
+    test_predictions_original = np.array(filtered_predictions)
+
+    # 7. JSON 파일 저장 (파일 이름은 티커 기반)
+    output_file1 = f"{ticker}_data.json"
+    output_file2 = f"{ticker}_prediction.json"
+    # 파일 1: 모든 히스토리 데이터 (차트용 정보)
+    save_json_file1(output_file1, processed_data)
+    # 파일 2: 예측 데이터 (형식에 맞게)
+    save_json_file2(output_file2, pred_dates, test_predictions_original, processed_data, shares_outstanding)
+
+
+###############################
+# 전체 처리: 여러 티커에 대해 실행
+###############################
+tickers = ["AAPL", "NVDA"]
+for t in tickers:
+    process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"))
+
+# 9. stocks.json 저장 (티커 목록)
+save_stocks_file("stocks.json", tickers)
