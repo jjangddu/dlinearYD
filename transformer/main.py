@@ -10,6 +10,7 @@ import numpy as np
 from datetime import datetime, timedelta
 import json
 
+
 ###############################
 # 유틸리티 및 공통 함수들
 ###############################
@@ -20,10 +21,12 @@ def convert_to_serializable(obj):
         return obj.cpu().numpy().tolist()
     return obj
 
+
 # yfinance를 통해 데이터를 다운로드
 def fetch_data(ticker, start_date, end_date):
     data = yf.download(ticker, start=start_date, end=end_date)
     return data
+
 
 ###############################
 # Dataset 및 모델 정의
@@ -79,7 +82,7 @@ class Model(nn.Module):
         kernel_size = 25
         self.decompsition = series_decomp(kernel_size)
         self.individual = configs.individual
-        self.channels = configs.enc_in  # 여기서는 1
+        self.channels = configs.enc_in  # 입력 채널 수 (여기서는 7)
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -123,9 +126,26 @@ class Configs:
 
 
 ###############################
+# Custom Loss Function (방향성 패널티 포함)
+###############################
+class CustomLoss(nn.Module):
+    def __init__(self, lambda_dir=1.0):
+        super(CustomLoss, self).__init__()
+        self.mse_loss = nn.MSELoss()
+        self.lambda_dir = lambda_dir
+
+    def forward(self, y_pred, y_true, y_prev):
+        mse = self.mse_loss(y_pred, y_true)
+        actual_dir = torch.sign(y_true - y_prev)
+        pred_dir = torch.sign(y_pred - y_prev)
+        direction_error = (actual_dir != pred_dir).float()
+        direction_loss = self.lambda_dir * torch.mean(direction_error)
+        return mse + direction_loss
+
+
+###############################
 # 평가 및 재학습 함수
 ###############################
-# ticker 인자를 추가했습니다.
 def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataloader, num_epochs, device, ticker,
                          retrain_threshold=0.05):
     if len(dataloader) == 0:
@@ -138,13 +158,14 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
     with torch.no_grad():
         for x, y in dataloader:
             x, y = x.to(device), y.to(device)
+            y_prev = x[:, -1, :]  # 각 배치의 마지막 시점 값을 전일 실제값으로 사용
             output = model(x)
-            loss = criterion(output, y)
+            loss = criterion(output, y, y_prev)
             total_loss += loss.item()
             predictions.append(output.cpu().numpy())
             ground_truth.append(y.cpu().numpy())
     print(f"Test Loss: {total_loss / len(dataloader):.4f}")
-    predictions = np.concatenate(predictions, axis=0)  # (num_samples, pred_len, 1)
+    predictions = np.concatenate(predictions, axis=0)  # (num_samples, pred_len, channels)
     ground_truth = np.concatenate(ground_truth, axis=0)
     prediction_diff = np.abs(predictions - ground_truth)
     max_diff = np.max(prediction_diff)
@@ -155,8 +176,9 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
             epoch_loss = 0.0
             for x, y in train_dataloader:
                 x, y = x.to(device), y.to(device)
+                y_prev = x[:, -1, :]
                 output = model(x)
-                loss = criterion(output, y)
+                loss = criterion(output, y, y_prev)
                 epoch_loss += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
@@ -170,8 +192,6 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
 ###############################
 # JSON 저장 함수들
 ###############################
-
-# Output File 1: 모든 히스토리 데이터 (차트용: open, high, low, close, volume)
 def save_json_file1(filename, raw_df):
     json_data = {"ticker": None, "data": {}}
     for date in raw_df.index.strftime("%Y-%m-%d"):
@@ -189,21 +209,19 @@ def save_json_file1(filename, raw_df):
     print(f"✅ JSON 파일 저장 완료: {filename}")
 
 
-# Output File 2: 예측 데이터
-# 형식: { ticker: 'AAPL', data: { 'YYYY-MM-DD': { prediction, actual_percentage, predict_percentage, market_capitalization, close }, ... } }
 def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
     json_data = {"ticker": None, "data": {}}
     for i, date in enumerate(dates):
         dt = pd.to_datetime(date)
         if dt in raw_df.index:
             row = raw_df.loc[dt]
-            # 실제 종가
             close_val = round(float(row["Close"].iloc[0]) if hasattr(row["Close"], "iloc") else float(row["Close"]), 2)
             market_cap = int(round(close_val * shares_outstanding)) if shares_outstanding else None
-            # 전일 종가 구하기
             prev_data = raw_df.loc[raw_df.index < dt]
             if not prev_data.empty:
-                prev_close = float(prev_data.iloc[-1]["Close"].iloc[0]) if hasattr(prev_data.iloc[-1]["Close"], "iloc") else float(prev_data.iloc[-1]["Close"])
+                prev_close = float(prev_data.iloc[-1]["Close"].iloc[0]) if hasattr(prev_data.iloc[-1]["Close"],
+                                                                                   "iloc") else float(
+                    prev_data.iloc[-1]["Close"])
                 actual_percentage = round(((close_val - prev_close) / prev_close) * 100, 2)
                 prediction_val = round(float(predictions[i]), 2)
                 predict_percentage = round(((prediction_val - prev_close) / prev_close) * 100, 2)
@@ -222,7 +240,6 @@ def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
     print(f"✅ JSON 파일 저장 완료: {filename}")
 
 
-# Output File 3: stocks.json에 티커 리스트 저장
 def save_stocks_file(filename, tickers):
     json_data = {"stocks": tickers}
     with open(filename, "w", encoding="utf-8") as f:
@@ -233,10 +250,8 @@ def save_stocks_file(filename, tickers):
 ###############################
 # 전체 파이프라인 (티커별 처리)
 ###############################
-
 def process_ticker(ticker, start_date, end_date):
     print(f"\n========== Processing {ticker} ==========")
-    # 1. 데이터 다운로드
     raw_data = fetch_data(ticker, start_date, end_date)
     if raw_data.empty:
         print(f"{ticker} 데이터가 없습니다.")
@@ -245,13 +260,38 @@ def process_ticker(ticker, start_date, end_date):
     stock_obj = yf.Ticker(ticker)
     shares_outstanding = stock_obj.info.get("sharesOutstanding", 0)
     processed_data = raw_data[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
+
+    # 추가 피처 계산
+    # RSI (14일)
+    delta = processed_data['Close'].diff()
+    gain = delta.clip(lower=0)
+    loss = -delta.clip(upper=0)
+    avg_gain = gain.rolling(window=14).mean()
+    avg_loss = loss.rolling(window=14).mean()
+    rs = avg_gain / avg_loss
+    processed_data['RSI'] = 100 - (100 / (1 + rs))
+
+    # MACD 및 MACD_signal
+    ema12 = processed_data['Close'].ewm(span=12, adjust=False).mean()
+    ema26 = processed_data['Close'].ewm(span=26, adjust=False).mean()
+    processed_data['MACD'] = ema12 - ema26
+    processed_data['MACD_signal'] = processed_data['MACD'].ewm(span=9, adjust=False).mean()
+
+    # Bollinger Bands (20일)
+    sma20 = processed_data['Close'].rolling(window=20).mean()
+    std20 = processed_data['Close'].rolling(window=20).std()
+    processed_data['Bollinger_upper'] = sma20 + 2 * std20
+    processed_data['Bollinger_lower'] = sma20 - 2 * std20
+
     processed_data.dropna(inplace=True)
-    features_for_model = ['Close']
+
+    # 사용할 피처 목록 (총 7개)
+    features_for_model = ['Close', 'RSI', 'MACD', 'MACD_signal', 'Bollinger_upper', 'Bollinger_lower', 'Volume']
     X = processed_data[features_for_model].values
     scaler = MinMaxScaler(feature_range=(0, 1))
     X_scaled = scaler.fit_transform(X)
 
-    # 3. 데이터 분할 (train: 2020~ target_date-60, test: target_date의 60일 전부터)
+    # 3. 데이터 분할
     seq_len = 60
     pred_len = 1
     target_date = pd.to_datetime("2025-01-01")
@@ -275,7 +315,7 @@ def process_ticker(ticker, start_date, end_date):
     model = Model(configs)
     device = "cuda" if torch.cuda.is_available() else "cpu"
     model.to(device)
-    criterion = nn.MSELoss()
+    criterion = CustomLoss(lambda_dir=1.0)
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     num_epochs = 20
     for epoch in range(num_epochs):
@@ -283,8 +323,9 @@ def process_ticker(ticker, start_date, end_date):
         epoch_loss = 0.0
         for x, y in train_dataloader:
             x, y = x.to(device), y.to(device)
+            y_prev = x[:, -1, :]
             output = model(x)
-            loss = criterion(output, y)
+            loss = criterion(output, y, y_prev)
             epoch_loss += loss.item()
             optimizer.zero_grad()
             loss.backward()
@@ -299,7 +340,7 @@ def process_ticker(ticker, start_date, end_date):
     test_predictions = test_predictions.squeeze()
     test_predictions_original = scaler.inverse_transform(test_predictions.reshape(-1, 1)).squeeze()
 
-    # 6. 예측 날짜 설정: test_index[seq_len: ...]가 2025-01-01부터 시작하므로, 오늘 전날(어제)까지 필터링
+    # 6. 예측 날짜 설정 (예측 데이터는 2025-01-01부터 시작하므로, 오늘 전날까지 필터링)
     pred_dates = test_index[seq_len: seq_len + len(test_dataset)]
     pred_dates = pred_dates.strftime("%Y-%m-%d").tolist()
     today = pd.to_datetime(datetime.today().strftime("%Y-%m-%d"))
@@ -314,12 +355,10 @@ def process_ticker(ticker, start_date, end_date):
     pred_dates = filtered_dates
     test_predictions_original = np.array(filtered_predictions)
 
-    # 7. JSON 파일 저장 (파일 이름은 티커 기반)
+    # 7. JSON 파일 저장 (티커 기반)
     output_file1 = f"{ticker}_data.json"
     output_file2 = f"{ticker}_prediction.json"
-    # 파일 1: 모든 히스토리 데이터 (차트용 정보)
     save_json_file1(output_file1, processed_data)
-    # 파일 2: 예측 데이터 (형식에 맞게)
     save_json_file2(output_file2, pred_dates, test_predictions_original, processed_data, shares_outstanding)
 
 
@@ -329,6 +368,15 @@ def process_ticker(ticker, start_date, end_date):
 tickers = ["AAPL", "NVDA"]
 for t in tickers:
     process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"))
+
+# 예시: 티커 목록에 대해 label, ticker, key 정보를 담은 리스트
+stocks_info = [
+    {"label": "애플", "ticker": "AAPL", "key": "APPLE"},
+    {"label": "엔비디아", "ticker": "NVDA", "key": "NVIDIA"}
+]
+
+save_stocks_file("stocks.json", stocks_info)
+
 
 # 9. stocks.json 저장 (티커 목록)
 save_stocks_file("stocks.json", tickers)

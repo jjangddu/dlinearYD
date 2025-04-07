@@ -34,10 +34,10 @@ def upload_file_to_s3(file_name, bucket, object_name=None):
 
 # 업로드할 파일 목록
 files_to_upload = [
-    "AAPL_data.json",
-    "AAPL_prediction.json",
-    "NVDA_data.json",
-    "NVDA_prediction.json",
+    "AAPL_newdata.json",
+    "AAPL_newprediction.json",
+    "NVDA_newdata.json",
+    "NVDA_newprediction.json",
     "stocks.json"
 ]
 
