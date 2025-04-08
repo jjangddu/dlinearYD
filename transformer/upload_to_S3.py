@@ -38,11 +38,13 @@ files_to_upload = [
     # "AAPL_prediction.json",
     # "NVDA_data.json",
     # "NVDA_prediction.json",
+    "TSLA_data.json"
     # "stocks.json"
 ]
-for i in range(13,25):
+for i in range(29, 30):
     files_to_upload.append(f"AAPL_prediction_{i}.json")
     files_to_upload.append(f"NVDA_prediction_{i}.json")
+    files_to_upload.append(f"TSLA_prediction_{i}.json")
 
 print(files_to_upload)
 
