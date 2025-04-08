@@ -281,11 +281,11 @@ def process_ticker(ticker, start_date, end_date):
     X_scaled = scaler.fit_transform(X)
 
     # 3. Sliding Window 설정 및 모델 학습/검증
-    seq_len = 60
+    seq_len = 30
     pred_len = 1
     batch_size = 32
-    num_epochs = 5  # sliding window 단계별 학습 에폭 수
-    kernel_size = 25
+    num_epochs = 50  # sliding window 단계별 학습 에폭 수
+    kernel_size = 7
     a = 0.7  # 이전 데이터 반영 정도 (0 < a <= 1)
     device = "cuda" if torch.cuda.is_available() else "cpu"
 
@@ -294,7 +294,7 @@ def process_ticker(ticker, start_date, end_date):
     overall_end = processed_data.index[-1]
     train_window = timedelta(days=365 * 2)  # 2년 학습
     val_window = timedelta(days=180)  # 6개월 검증
-    step = timedelta(days=180)  # 6개월 단위 이동
+    step = timedelta(days=90)  # 6개월 단위 이동
 
     windows = generate_sliding_windows(overall_start, overall_end, train_window, val_window, step)
     print(f"총 {len(windows)}개의 sliding window가 생성되었습니다.")
@@ -407,7 +407,7 @@ def process_ticker(ticker, start_date, end_date):
 
     # 5. JSON 파일 저장
     output_file1 = f"{ticker}_data.json"
-    output_file2 = f"{ticker}_prediction.json"
+    output_file2 = f"{ticker}_prediction_24.json"
     save_json_file1(output_file1, processed_data)
     save_json_file2(output_file2, pred_dates, final_predictions, processed_data, shares_outstanding)
 
