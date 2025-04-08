@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 import numpy as np
 from datetime import datetime, timedelta
 import json
+import copy
 
 
 ###############################
@@ -26,6 +27,33 @@ def convert_to_serializable(obj):
 def fetch_data(ticker, start_date, end_date):
     data = yf.download(ticker, start=start_date, end=end_date)
     return data
+
+
+# Sliding Window 구간 생성 함수
+def generate_sliding_windows(start_date, final_date, train_window, val_window, step):
+    """
+    start_date: 전체 데이터의 시작 날짜 (datetime)
+    final_date: 전체 데이터의 종료 날짜 (datetime)
+    train_window: 학습 기간 (예: timedelta(days=365*2) -> 2년)
+    val_window: 검증 기간 (예: timedelta(days=180) -> 6개월)
+    step: 윈도우 이동 간격 (예: timedelta(days=180) -> 6개월)
+    """
+    windows = []
+    current_train_start = start_date
+    while True:
+        current_train_end = current_train_start + train_window - timedelta(days=1)
+        validation_start = current_train_end + timedelta(days=1)
+        validation_end = validation_start + val_window - timedelta(days=1)
+        if validation_end > final_date:
+            break
+        windows.append({
+            "train_start": current_train_start,
+            "train_end": current_train_end,
+            "val_start": validation_start,
+            "val_end": validation_end
+        })
+        current_train_start += step
+    return windows
 
 
 ###############################
@@ -79,10 +107,10 @@ class Model(nn.Module):
         super(Model, self).__init__()
         self.seq_len = configs.seq_len
         self.pred_len = configs.pred_len
-        kernel_size = 25
+        kernel_size = configs.kernel_size  # kernel_size를 configs에서 전달받음
         self.decompsition = series_decomp(kernel_size)
         self.individual = configs.individual
-        self.channels = configs.enc_in  # 입력 채널 수 (여기서는 7)
+        self.channels = configs.enc_in  # 일반적으로 1
         if self.individual:
             self.Linear_Seasonal = nn.ModuleList()
             self.Linear_Trend = nn.ModuleList()
@@ -118,29 +146,12 @@ class Model(nn.Module):
 
 
 class Configs:
-    def __init__(self, seq_len, pred_len, individual, enc_in):
+    def __init__(self, seq_len, pred_len, individual, enc_in, kernel_size):
         self.seq_len = seq_len
         self.pred_len = pred_len
         self.individual = individual
         self.enc_in = enc_in
-
-
-###############################
-# Custom Loss Function (방향성 패널티 포함)
-###############################
-class CustomLoss(nn.Module):
-    def __init__(self, lambda_dir=1.0):
-        super(CustomLoss, self).__init__()
-        self.mse_loss = nn.MSELoss()
-        self.lambda_dir = lambda_dir
-
-    def forward(self, y_pred, y_true, y_prev):
-        mse = self.mse_loss(y_pred, y_true)
-        actual_dir = torch.sign(y_true - y_prev)
-        pred_dir = torch.sign(y_pred - y_prev)
-        direction_error = (actual_dir != pred_dir).float()
-        direction_loss = self.lambda_dir * torch.mean(direction_error)
-        return mse + direction_loss
+        self.kernel_size = kernel_size
 
 
 ###############################
@@ -158,14 +169,13 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
     with torch.no_grad():
         for x, y in dataloader:
             x, y = x.to(device), y.to(device)
-            y_prev = x[:, -1, :]  # 각 배치의 마지막 시점 값을 전일 실제값으로 사용
             output = model(x)
-            loss = criterion(output, y, y_prev)
+            loss = criterion(output, y)
             total_loss += loss.item()
             predictions.append(output.cpu().numpy())
             ground_truth.append(y.cpu().numpy())
     print(f"Test Loss: {total_loss / len(dataloader):.4f}")
-    predictions = np.concatenate(predictions, axis=0)  # (num_samples, pred_len, channels)
+    predictions = np.concatenate(predictions, axis=0)  # (num_samples, pred_len, 1)
     ground_truth = np.concatenate(ground_truth, axis=0)
     prediction_diff = np.abs(predictions - ground_truth)
     max_diff = np.max(prediction_diff)
@@ -176,9 +186,8 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
             epoch_loss = 0.0
             for x, y in train_dataloader:
                 x, y = x.to(device), y.to(device)
-                y_prev = x[:, -1, :]
                 output = model(x)
-                loss = criterion(output, y, y_prev)
+                loss = criterion(output, y)
                 epoch_loss += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
@@ -192,6 +201,8 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
 ###############################
 # JSON 저장 함수들
 ###############################
+
+# Output File 1: 모든 히스토리 데이터 (차트용: open, high, low, close, volume)
 def save_json_file1(filename, raw_df):
     json_data = {"ticker": None, "data": {}}
     for date in raw_df.index.strftime("%Y-%m-%d"):
@@ -209,6 +220,7 @@ def save_json_file1(filename, raw_df):
     print(f"✅ JSON 파일 저장 완료: {filename}")
 
 
+# Output File 2: 예측 데이터
 def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
     json_data = {"ticker": None, "data": {}}
     for i, date in enumerate(dates):
@@ -240,6 +252,7 @@ def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
     print(f"✅ JSON 파일 저장 완료: {filename}")
 
 
+# Output File 3: stocks.json에 티커 리스트 저장
 def save_stocks_file(filename, tickers):
     json_data = {"stocks": tickers}
     with open(filename, "w", encoding="utf-8") as f:
@@ -252,6 +265,7 @@ def save_stocks_file(filename, tickers):
 ###############################
 def process_ticker(ticker, start_date, end_date):
     print(f"\n========== Processing {ticker} ==========")
+    # 1. 데이터 다운로드
     raw_data = fetch_data(ticker, start_date, end_date)
     if raw_data.empty:
         print(f"{ticker} 데이터가 없습니다.")
@@ -260,87 +274,123 @@ def process_ticker(ticker, start_date, end_date):
     stock_obj = yf.Ticker(ticker)
     shares_outstanding = stock_obj.info.get("sharesOutstanding", 0)
     processed_data = raw_data[['Open', 'High', 'Low', 'Close', 'Volume']].copy()
-
-    # 추가 피처 계산
-    # RSI (14일)
-    delta = processed_data['Close'].diff()
-    gain = delta.clip(lower=0)
-    loss = -delta.clip(upper=0)
-    avg_gain = gain.rolling(window=14).mean()
-    avg_loss = loss.rolling(window=14).mean()
-    rs = avg_gain / avg_loss
-    processed_data['RSI'] = 100 - (100 / (1 + rs))
-
-    # MACD 및 MACD_signal
-    ema12 = processed_data['Close'].ewm(span=12, adjust=False).mean()
-    ema26 = processed_data['Close'].ewm(span=26, adjust=False).mean()
-    processed_data['MACD'] = ema12 - ema26
-    processed_data['MACD_signal'] = processed_data['MACD'].ewm(span=9, adjust=False).mean()
-
-    # Bollinger Bands (20일)
-    sma20 = processed_data['Close'].rolling(window=20).mean()
-    std20 = processed_data['Close'].rolling(window=20).std()
-    processed_data['Bollinger_upper'] = sma20 + 2 * std20
-    processed_data['Bollinger_lower'] = sma20 - 2 * std20
-
     processed_data.dropna(inplace=True)
-
-    # 사용할 피처 목록 (총 7개)
-    features_for_model = ['Close', 'RSI', 'MACD', 'MACD_signal', 'Bollinger_upper', 'Bollinger_lower', 'Volume']
+    features_for_model = ['Close']
     X = processed_data[features_for_model].values
     scaler = MinMaxScaler(feature_range=(0, 1))
     X_scaled = scaler.fit_transform(X)
 
-    # 3. 데이터 분할
-    seq_len = 60
+    # 3. Sliding Window 설정 및 모델 학습/검증
+    seq_len = 30
     pred_len = 1
+    batch_size = 32
+    num_epochs = 50  # sliding window 단계별 학습 에폭 수
+    kernel_size = 7
+    a = 0.7  # 이전 데이터 반영 정도 (0 < a <= 1)
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # 전체 데이터의 기간 (start_date부터 processed_data의 마지막 날짜까지)
+    overall_start = pd.to_datetime(start_date)
+    overall_end = processed_data.index[-1]
+    train_window = timedelta(days=365 * 2)  # 2년 학습
+    val_window = timedelta(days=180)  # 6개월 검증
+    step = timedelta(days=90)  # 6개월 단위 이동
+
+    windows = generate_sliding_windows(overall_start, overall_end, train_window, val_window, step)
+    print(f"총 {len(windows)}개의 sliding window가 생성되었습니다.")
+
+    mse_list = []
+    # 모델 초기화 (슬라이딩 윈도우 단계간 연속 학습)
+    configs = Configs(seq_len, pred_len, individual=False, enc_in=len(features_for_model), kernel_size=kernel_size)
+    model = Model(configs).to(device)
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    criterion = nn.MSELoss()
+
+    prev_state = copy.deepcopy(model.state_dict())
+
+    for i, window in enumerate(windows):
+        print(f"\n--- Sliding Window Step {i + 1} ---")
+        print(f"Train: {window['train_start'].date()} ~ {window['train_end'].date()}")
+        print(f"Validation: {window['val_start'].date()} ~ {window['val_end'].date()}")
+
+        # 날짜 필터링을 통해 해당 윈도우의 데이터 슬라이싱
+        train_mask = (processed_data.index >= window["train_start"]) & (processed_data.index <= window["train_end"])
+        train_data = X_scaled[train_mask]
+        val_mask = (processed_data.index >= window["val_start"]) & (processed_data.index <= window["val_end"])
+        val_data = X_scaled[val_mask]
+
+        if len(train_data) < seq_len + pred_len or len(val_data) < seq_len + pred_len:
+            print("데이터 부족으로 이 윈도우는 건너뜁니다.")
+            continue
+
+        train_dataset = StockDataset(train_data, seq_len, pred_len)
+        val_dataset = StockDataset(val_data, seq_len, pred_len)
+        train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        val_dataloader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+
+        # 해당 윈도우에서 모델 학습
+        model.train()
+        for epoch in range(num_epochs):
+            epoch_loss = 0.0
+            for x, y in train_dataloader:
+                x, y = x.to(device), y.to(device)
+                optimizer.zero_grad()
+                output = model(x)
+                loss = criterion(output, y)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            print(f"Step {i + 1} Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss / len(train_dataloader):.4f}")
+
+        # 검증 데이터셋에 대한 평가 (MSE 계산)
+        model.eval()
+        val_loss = 0.0
+        count = 0
+        with torch.no_grad():
+            for x, y in val_dataloader:
+                x, y = x.to(device), y.to(device)
+                output = model(x)
+                loss = criterion(output, y)
+                val_loss += loss.item()
+                count += 1
+        val_mse = val_loss / count if count > 0 else None
+        mse_list.append(val_mse)
+        print(f"Step {i + 1} - Validation MSE: {val_mse:.4f}")
+
+        # 이전 모델 가중치와 현재 가중치를 a 비율로 혼합하여 업데이트
+        current_state = model.state_dict()
+        for key in current_state:
+            current_state[key] = a * current_state[key] + (1 - a) * prev_state[key]
+        model.load_state_dict(current_state)
+        prev_state = copy.deepcopy(model.state_dict())
+
+    print("\nSliding Window Validation 완료. 각 스텝의 MSE:", mse_list)
+
+    # 4. 최종 예측: 2025-01-01부터 예측 (원래 코드와 유사)
     target_date = pd.to_datetime("2025-01-01")
     if target_date in processed_data.index:
         target_loc = processed_data.index.get_loc(target_date)
     else:
         target_loc = processed_data.index.get_indexer([target_date], method='nearest')[0]
+
+    # 예측을 위해 target_date - seq_len부터 사용
     test_data = X_scaled[target_loc - seq_len:]
     test_index = processed_data.index[target_loc - seq_len:]
-    train_data = X_scaled[:target_loc - seq_len]
 
-    train_dataset = StockDataset(train_data, seq_len, pred_len)
     test_dataset = StockDataset(test_data, seq_len, pred_len)
-
-    batch_size = 32
-    train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    # 4. 모델 초기화 및 학습
-    configs = Configs(seq_len, pred_len, individual=False, enc_in=len(features_for_model))
-    model = Model(configs)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    model.to(device)
-    criterion = CustomLoss(lambda_dir=1.0)
-    optimizer = optim.Adam(model.parameters(), lr=0.001)
-    num_epochs = 20
-    for epoch in range(num_epochs):
-        model.train()
-        epoch_loss = 0.0
-        for x, y in train_dataloader:
-            x, y = x.to(device), y.to(device)
-            y_prev = x[:, -1, :]
+    model.eval()
+    predictions = []
+    with torch.no_grad():
+        for x, y in test_dataloader:
+            x = x.to(device)
             output = model(x)
-            loss = criterion(output, y, y_prev)
-            epoch_loss += loss.item()
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-        print(f"{ticker} - Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss / len(train_dataloader):.4f}")
-    torch.save(model.state_dict(), f"{ticker}_model.pth")
-    print(f"{ticker} 모델 저장됨: {ticker}_model.pth")
+            predictions.append(output.cpu().numpy())
+    predictions = np.concatenate(predictions, axis=0).squeeze()  # (num_samples, pred_len)
+    test_predictions_original = scaler.inverse_transform(predictions.reshape(-1, 1)).squeeze()
 
-    # 5. 평가 및 (필요시) 재학습
-    test_predictions, _ = evaluate_and_retrain(model, test_dataloader, criterion, optimizer, train_dataloader,
-                                               num_epochs, device, ticker)
-    test_predictions = test_predictions.squeeze()
-    test_predictions_original = scaler.inverse_transform(test_predictions.reshape(-1, 1)).squeeze()
-
-    # 6. 예측 날짜 설정 (예측 데이터는 2025-01-01부터 시작하므로, 오늘 전날까지 필터링)
+    # 예측 날짜 설정 (test_index[seq_len:]부터 2025-01-01에 해당하도록)
     pred_dates = test_index[seq_len: seq_len + len(test_dataset)]
     pred_dates = pred_dates.strftime("%Y-%m-%d").tolist()
     today = pd.to_datetime(datetime.today().strftime("%Y-%m-%d"))
@@ -353,13 +403,13 @@ def process_ticker(ticker, start_date, end_date):
             filtered_dates.append(date)
             filtered_predictions.append(pred)
     pred_dates = filtered_dates
-    test_predictions_original = np.array(filtered_predictions)
+    final_predictions = np.array(filtered_predictions)
 
-    # 7. JSON 파일 저장 (티커 기반)
+    # 5. JSON 파일 저장
     output_file1 = f"{ticker}_data.json"
-    output_file2 = f"{ticker}_prediction.json"
+    output_file2 = f"{ticker}_prediction_24.json"
     save_json_file1(output_file1, processed_data)
-    save_json_file2(output_file2, pred_dates, test_predictions_original, processed_data, shares_outstanding)
+    save_json_file2(output_file2, pred_dates, final_predictions, processed_data, shares_outstanding)
 
 
 ###############################
@@ -369,14 +419,4 @@ tickers = ["AAPL", "NVDA"]
 for t in tickers:
     process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"))
 
-# 예시: 티커 목록에 대해 label, ticker, key 정보를 담은 리스트
-stocks_info = [
-    {"label": "애플", "ticker": "AAPL", "key": "APPLE"},
-    {"label": "엔비디아", "ticker": "NVDA", "key": "NVIDIA"}
-]
-
-save_stocks_file("stocks.json", stocks_info)
-
-
-# 9. stocks.json 저장 (티커 목록)
 save_stocks_file("stocks.json", tickers)
