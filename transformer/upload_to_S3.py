@@ -34,17 +34,24 @@ def upload_file_to_s3(file_name, bucket, object_name=None):
 
 # 업로드할 파일 목록
 files_to_upload = [
-    # "AAPL_data.json",
-    # "AAPL_prediction.json",
-    # "NVDA_data.json",
-    # "NVDA_prediction.json",
-    # "TSLA_data.json"
+    "BTC-USD_data.json"
+    "GOOGL_data.json"
+    "AAPL_data.json",
+    "AAPL_prediction.json",
+    "NVDA_data.json",
+    "NVDA_prediction.json",
+    "TSLA_data.json"
     # "stocks.json"
+    "AAPL_investor_results.json",
+    "GOOGL_investor_results.json",
+    "NVDA_investor_results.json",
+    "TSLA_investor_results.json"
 ]
-for i in range(3, 4):
-    files_to_upload.append(f"AAPL_prediction_feature_{i}.json")
-    files_to_upload.append(f"NVDA_prediction_feature_{i}.json")
-    files_to_upload.append(f"TSLA_prediction_feature_{i}.json")
+
+    files_to_upload.append(f"AAPL_prediction_feature.json")
+    files_to_upload.append(f"NVDA_prediction_feature.json")
+    files_to_upload.append(f"GOOGL_prediction_feature.json")
+    files_to_upload.append(f"BTC-USD_prediction_feature.json")
 
 print(files_to_upload)
 

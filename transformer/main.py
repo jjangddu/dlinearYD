@@ -194,7 +194,7 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
                 epoch_loss += loss.item()
             print(f"Retrain Epoch [{epoch + 1}/{num_epochs}], Loss: {epoch_loss / len(train_dataloader):.4f}")
         torch.save(model.state_dict(), f"{ticker}_model_retrained.pth")
-        print(f"✅ 모델 재학습 완료! {ticker}_model_retrained.pth 저장됨.")
+        print(f"모델 재학습 완료! {ticker}_model_retrained.pth 저장됨.")
     return predictions, ground_truth
 
 
@@ -215,7 +215,7 @@ def save_json_file1(filename, raw_df):
         json_data["data"][date] = hist
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=4, default=convert_to_serializable)
-    print(f"✅ JSON 파일 저장 완료: {filename}")
+    print(f"JSON 파일 저장 완료: {filename}")
 
 
 def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
@@ -242,18 +242,19 @@ def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
                 "actual_percentage": actual_percentage,
                 "predict_percentage": predict_percentage,
                 "market_capitalization": market_cap,
+                # "market_capitalization": 0,
                 "close": close_val
             }
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=4, default=convert_to_serializable)
-    print(f"✅ JSON 파일 저장 완료: {filename}")
+    print(f"JSON 파일 저장 완료: {filename}")
 
 
 def save_stocks_file(filename, tickers):
     json_data = {"stocks": tickers}
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(json_data, f, indent=4)
-    print(f"✅ Stocks JSON 파일 저장 완료: {filename}")
+    print(f"Stocks JSON 파일 저장 완료: {filename}")
 
 
 ###############################
@@ -412,13 +413,13 @@ def process_ticker(ticker, start_date, end_date, mode="single"):
     final_predictions = np.array(filtered_predictions)
 
     output_file1 = f"{ticker}_data.json"
-    output_file2 = f"{ticker}_prediction_feature_3.json"
+    output_file2 = f"{ticker}_prediction_feature.json"
     save_json_file1(output_file1, processed_data)
     save_json_file2(output_file2, pred_dates, final_predictions, processed_data, shares_outstanding)
 
 
-for t in ["AAPL", "NVDA", "TSLA"]:
+for t in ["AAPL", "NVDA", "TSLA", "BTC-USD", "GOOGL"]:
     # mode를 "single" 또는 "multi"로 선택하여 실험하세요.
     process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"), mode="multi")
 
-save_stocks_file("stocks.json", ["AAPL", "NVNA", "TSLA"])
+save_stocks_file("stocks.json", ["AAPL", "NVNA", "TSLA", "BTC-USD", "GOOGL"])
