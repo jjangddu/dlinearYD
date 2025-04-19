@@ -1,7 +1,9 @@
 {
     "stocks": [
         "AAPL",
-        "NVDA",
-        "TSLA"
+        "NVNA",
+        "TSLA",
+        "BTC-USD",
+        "GOOGL"
     ]
 }
