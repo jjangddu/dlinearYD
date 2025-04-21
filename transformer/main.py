@@ -413,13 +413,13 @@ def process_ticker(ticker, start_date, end_date, mode="single"):
     final_predictions = np.array(filtered_predictions)
 
     output_file1 = f"{ticker}_data.json"
-    output_file2 = f"{ticker}_prediction_feature.json"
+    output_file2 = f"{ticker}_prediction.json"
     save_json_file1(output_file1, processed_data)
     save_json_file2(output_file2, pred_dates, final_predictions, processed_data, shares_outstanding)
 
 
-for t in ["AAPL", "NVDA", "TSLA", "BTC-USD", "GOOGL"]:
+for t in ["AAPL", "NVDA", "TSLA", "GOOGL"]:
     # mode를 "single" 또는 "multi"로 선택하여 실험하세요.
     process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"), mode="multi")
 
-save_stocks_file("stocks.json", ["AAPL", "NVNA", "TSLA", "BTC-USD", "GOOGL"])
+save_stocks_file("stocks.json", ["AAPL", "NVNA", "TSLA", "GOOGL"])
