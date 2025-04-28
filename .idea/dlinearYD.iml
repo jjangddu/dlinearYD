@@ -3,9 +3,9 @@
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$">
       <excludeFolder url="file://$MODULE_DIR$/.venv" />
-      <excludeFolder url="file://$MODULE_DIR$/transformer/.venv/bin" />
-      <excludeFolder url="file://$MODULE_DIR$/transformer/.venv/lib" />
-      <excludeFolder url="file://$MODULE_DIR$/transformer/.venv/share" />
+      <excludeFolder url="file://$MODULE_DIR$/dlinear/.venv/bin" />
+      <excludeFolder url="file://$MODULE_DIR$/dlinear/.venv/lib" />
+      <excludeFolder url="file://$MODULE_DIR$/dlinear/.venv/share" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.12 (dlinearYD)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />

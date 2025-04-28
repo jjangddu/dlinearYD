@@ -1,0 +1,551 @@
+{
+    "ticker": "AMZN",
+    "data": {
+        "2025-01-02": {
+            "prediction": 218.78,
+            "actual_percentage": 0.38,
+            "predict_percentage": -0.28,
+            "market_capitalization": 2337062756188,
+            "close": 220.22
+        },
+        "2025-01-03": {
+            "prediction": 219.11,
+            "actual_percentage": 1.8,
+            "predict_percentage": -0.5,
+            "market_capitalization": 2379193984696,
+            "close": 224.19
+        },
+        "2025-01-06": {
+            "prediction": 221.56,
+            "actual_percentage": 1.53,
+            "predict_percentage": -1.17,
+            "market_capitalization": 2415488393134,
+            "close": 227.61
+        },
+        "2025-01-07": {
+            "prediction": 224.03,
+            "actual_percentage": -2.42,
+            "predict_percentage": -1.57,
+            "market_capitalization": 2357120192430,
+            "close": 222.11
+        },
+        "2025-01-08": {
+            "prediction": 220.37,
+            "actual_percentage": 0.01,
+            "predict_percentage": -0.78,
+            "market_capitalization": 2357332440433,
+            "close": 222.13
+        },
+        "2025-01-10": {
+            "prediction": 220.29,
+            "actual_percentage": -1.44,
+            "predict_percentage": -0.83,
+            "market_capitalization": 2323478884024,
+            "close": 218.94
+        },
+        "2025-01-13": {
+            "prediction": 217.75,
+            "actual_percentage": -0.22,
+            "predict_percentage": -0.54,
+            "market_capitalization": 2318384931963,
+            "close": 218.46
+        },
+        "2025-01-14": {
+            "prediction": 218.14,
+            "actual_percentage": -0.32,
+            "predict_percentage": -0.15,
+            "market_capitalization": 2310956251873,
+            "close": 217.76
+        },
+        "2025-01-15": {
+            "prediction": 216.71,
+            "actual_percentage": 2.57,
+            "predict_percentage": -0.48,
+            "market_capitalization": 2370279568589,
+            "close": 223.35
+        },
+        "2025-01-16": {
+            "prediction": 220.81,
+            "actual_percentage": -1.2,
+            "predict_percentage": -1.14,
+            "market_capitalization": 2341732212244,
+            "close": 220.66
+        },
+        "2025-01-17": {
+            "prediction": 218.72,
+            "actual_percentage": 2.39,
+            "predict_percentage": -0.88,
+            "market_capitalization": 2397765684920,
+            "close": 225.94
+        },
+        "2025-01-21": {
+            "prediction": 222.84,
+            "actual_percentage": 2.11,
+            "predict_percentage": -1.37,
+            "market_capitalization": 2448386833531,
+            "close": 230.71
+        },
+        "2025-01-22": {
+            "prediction": 225.58,
+            "actual_percentage": 1.86,
+            "predict_percentage": -2.22,
+            "market_capitalization": 2494020154081,
+            "close": 235.01
+        },
+        "2025-01-23": {
+            "prediction": 230.08,
+            "actual_percentage": 0.17,
+            "predict_percentage": -2.1,
+            "market_capitalization": 2498371238134,
+            "close": 235.42
+        },
+        "2025-01-24": {
+            "prediction": 230.21,
+            "actual_percentage": -0.24,
+            "predict_percentage": -2.21,
+            "market_capitalization": 2492322170061,
+            "close": 234.85
+        },
+        "2025-01-27": {
+            "prediction": 230.44,
+            "actual_percentage": 0.24,
+            "predict_percentage": -1.88,
+            "market_capitalization": 2498371238134,
+            "close": 235.42
+        },
+        "2025-01-28": {
+            "prediction": 231.06,
+            "actual_percentage": 1.16,
+            "predict_percentage": -1.85,
+            "market_capitalization": 2527343090483,
+            "close": 238.15
+        },
+        "2025-01-29": {
+            "prediction": 233.4,
+            "actual_percentage": -0.45,
+            "predict_percentage": -1.99,
+            "market_capitalization": 2515881698345,
+            "close": 237.07
+        },
+        "2025-01-30": {
+            "prediction": 232.88,
+            "actual_percentage": -1.03,
+            "predict_percentage": -1.77,
+            "market_capitalization": 2490093566034,
+            "close": 234.64
+        },
+        "2025-01-31": {
+            "prediction": 231.28,
+            "actual_percentage": 1.3,
+            "predict_percentage": -1.43,
+            "market_capitalization": 2522355262423,
+            "close": 237.68
+        },
+        "2025-02-03": {
+            "prediction": 233.08,
+            "actual_percentage": -0.11,
+            "predict_percentage": -1.94,
+            "market_capitalization": 2519596038390,
+            "close": 237.42
+        },
+        "2025-02-04": {
+            "prediction": 233.17,
+            "actual_percentage": 1.95,
+            "predict_percentage": -1.79,
+            "market_capitalization": 2568837574984,
+            "close": 242.06
+        },
+        "2025-02-05": {
+            "prediction": 236.76,
+            "actual_percentage": -2.43,
+            "predict_percentage": -2.19,
+            "market_capitalization": 2506330538230,
+            "close": 236.17
+        },
+        "2025-02-06": {
+            "prediction": 232.24,
+            "actual_percentage": 1.13,
+            "predict_percentage": -1.66,
+            "market_capitalization": 2534559522570,
+            "close": 238.83
+        },
+        "2025-02-07": {
+            "prediction": 234.7,
+            "actual_percentage": -4.05,
+            "predict_percentage": -1.73,
+            "market_capitalization": 2431831489331,
+            "close": 229.15
+        },
+        "2025-02-10": {
+            "prediction": 227.08,
+            "actual_percentage": 1.74,
+            "predict_percentage": -0.9,
+            "market_capitalization": 2474174965842,
+            "close": 233.14
+        },
+        "2025-02-11": {
+            "prediction": 230.8,
+            "actual_percentage": -0.16,
+            "predict_percentage": -1.0,
+            "market_capitalization": 2470142253793,
+            "close": 232.76
+        },
+        "2025-02-12": {
+            "prediction": 228.9,
+            "actual_percentage": -1.65,
+            "predict_percentage": -1.66,
+            "market_capitalization": 2429496761303,
+            "close": 228.93
+        },
+        "2025-02-13": {
+            "prediction": 227.64,
+            "actual_percentage": 0.63,
+            "predict_percentage": -0.56,
+            "market_capitalization": 2444778617487,
+            "close": 230.37
+        },
+        "2025-02-14": {
+            "prediction": 227.06,
+            "actual_percentage": -0.73,
+            "predict_percentage": -1.44,
+            "market_capitalization": 2426843661271,
+            "close": 228.68
+        },
+        "2025-02-18": {
+            "prediction": 226.07,
+            "actual_percentage": -0.89,
+            "predict_percentage": -1.14,
+            "market_capitalization": 2405300489011,
+            "close": 226.65
+        },
+        "2025-02-19": {
+            "prediction": 224.98,
+            "actual_percentage": -0.01,
+            "predict_percentage": -0.74,
+            "market_capitalization": 2405088241009,
+            "close": 226.63
+        },
+        "2025-02-20": {
+            "prediction": 224.2,
+            "actual_percentage": -1.65,
+            "predict_percentage": -1.07,
+            "market_capitalization": 2365291740529,
+            "close": 222.88
+        },
+        "2025-02-21": {
+            "prediction": 221.69,
+            "actual_percentage": -2.83,
+            "predict_percentage": -0.53,
+            "market_capitalization": 2298433619722,
+            "close": 216.58
+        },
+        "2025-02-24": {
+            "prediction": 217.12,
+            "actual_percentage": -1.79,
+            "predict_percentage": 0.25,
+            "market_capitalization": 2257363631227,
+            "close": 212.71
+        },
+        "2025-02-25": {
+            "prediction": 213.63,
+            "actual_percentage": 0.04,
+            "predict_percentage": 0.43,
+            "market_capitalization": 2258318747238,
+            "close": 212.8
+        },
+        "2025-02-26": {
+            "prediction": 213.3,
+            "actual_percentage": 0.73,
+            "predict_percentage": 0.23,
+            "market_capitalization": 2274767967437,
+            "close": 214.35
+        },
+        "2025-02-27": {
+            "prediction": 214.1,
+            "actual_percentage": -2.62,
+            "predict_percentage": -0.12,
+            "market_capitalization": 2215232402719,
+            "close": 208.74
+        },
+        "2025-02-28": {
+            "prediction": 209.82,
+            "actual_percentage": 1.7,
+            "predict_percentage": 0.52,
+            "market_capitalization": 2252800299172,
+            "close": 212.28
+        },
+        "2025-03-03": {
+            "prediction": 211.81,
+            "actual_percentage": -3.42,
+            "predict_percentage": -0.22,
+            "market_capitalization": 2175754274243,
+            "close": 205.02
+        },
+        "2025-03-04": {
+            "prediction": 206.22,
+            "actual_percentage": -0.6,
+            "predict_percentage": 0.59,
+            "market_capitalization": 2162807146086,
+            "close": 203.8
+        },
+        "2025-03-05": {
+            "prediction": 206.07,
+            "actual_percentage": 2.24,
+            "predict_percentage": 1.11,
+            "market_capitalization": 2211199690670,
+            "close": 208.36
+        },
+        "2025-03-06": {
+            "prediction": 207.64,
+            "actual_percentage": -3.68,
+            "predict_percentage": -0.35,
+            "market_capitalization": 2129908705690,
+            "close": 200.7
+        },
+        "2025-03-07": {
+            "prediction": 203.3,
+            "actual_percentage": -0.72,
+            "predict_percentage": 1.3,
+            "market_capitalization": 2114520725504,
+            "close": 199.25
+        },
+        "2025-03-10": {
+            "prediction": 201.71,
+            "actual_percentage": -2.36,
+            "predict_percentage": 1.23,
+            "market_capitalization": 2064536320901,
+            "close": 194.54
+        },
+        "2025-03-11": {
+            "prediction": 197.17,
+            "actual_percentage": 1.05,
+            "predict_percentage": 1.35,
+            "market_capitalization": 2086291741164,
+            "close": 196.59
+        },
+        "2025-03-12": {
+            "prediction": 199.45,
+            "actual_percentage": 1.17,
+            "predict_percentage": 1.45,
+            "market_capitalization": 2110700261458,
+            "close": 198.89
+        },
+        "2025-03-13": {
+            "prediction": 199.94,
+            "actual_percentage": -2.51,
+            "predict_percentage": 0.53,
+            "market_capitalization": 2057638260818,
+            "close": 193.89
+        },
+        "2025-03-14": {
+            "prediction": 196.91,
+            "actual_percentage": 2.09,
+            "predict_percentage": 1.56,
+            "market_capitalization": 2100724605338,
+            "close": 197.95
+        },
+        "2025-03-17": {
+            "prediction": 199.09,
+            "actual_percentage": -1.12,
+            "predict_percentage": 0.58,
+            "market_capitalization": 2077271201055,
+            "close": 195.74
+        },
+        "2025-03-18": {
+            "prediction": 197.28,
+            "actual_percentage": -1.49,
+            "predict_percentage": 0.79,
+            "market_capitalization": 2046282992681,
+            "close": 192.82
+        },
+        "2025-03-19": {
+            "prediction": 196.19,
+            "actual_percentage": 1.41,
+            "predict_percentage": 1.75,
+            "market_capitalization": 2075148721029,
+            "close": 195.54
+        },
+        "2025-03-20": {
+            "prediction": 196.91,
+            "actual_percentage": -0.3,
+            "predict_percentage": 0.7,
+            "market_capitalization": 2068887404954,
+            "close": 194.95
+        },
+        "2025-03-21": {
+            "prediction": 196.96,
+            "actual_percentage": 0.65,
+            "predict_percentage": 1.03,
+            "market_capitalization": 2082259029115,
+            "close": 196.21
+        },
+        "2025-03-24": {
+            "prediction": 198.04,
+            "actual_percentage": 3.59,
+            "predict_percentage": 0.93,
+            "market_capitalization": 2157076450017,
+            "close": 203.26
+        },
+        "2025-03-25": {
+            "prediction": 202.42,
+            "actual_percentage": 1.21,
+            "predict_percentage": -0.41,
+            "market_capitalization": 2183076830331,
+            "close": 205.71
+        },
+        "2025-03-26": {
+            "prediction": 204.83,
+            "actual_percentage": -2.23,
+            "predict_percentage": -0.43,
+            "market_capitalization": 2134472037745,
+            "close": 201.13
+        },
+        "2025-03-27": {
+            "prediction": 202.18,
+            "actual_percentage": 0.11,
+            "predict_percentage": 0.52,
+            "market_capitalization": 2136912889774,
+            "close": 201.36
+        },
+        "2025-03-28": {
+            "prediction": 202.0,
+            "actual_percentage": -4.29,
+            "predict_percentage": 0.32,
+            "market_capitalization": 2045221752668,
+            "close": 192.72
+        },
+        "2025-03-31": {
+            "prediction": 196.15,
+            "actual_percentage": -1.28,
+            "predict_percentage": 1.78,
+            "market_capitalization": 2019115248353,
+            "close": 190.26
+        },
+        "2025-04-01": {
+            "prediction": 194.82,
+            "actual_percentage": 1.0,
+            "predict_percentage": 2.4,
+            "market_capitalization": 2039384932598,
+            "close": 192.17
+        },
+        "2025-04-02": {
+            "prediction": 194.75,
+            "actual_percentage": 2.0,
+            "predict_percentage": 1.34,
+            "market_capitalization": 2080136549089,
+            "close": 196.01
+        },
+        "2025-04-03": {
+            "prediction": 197.99,
+            "actual_percentage": -8.98,
+            "predict_percentage": 1.01,
+            "market_capitalization": 1893358306836,
+            "close": 178.41
+        },
+        "2025-04-04": {
+            "prediction": 185.17,
+            "actual_percentage": -4.15,
+            "predict_percentage": 3.79,
+            "market_capitalization": 1814720421888,
+            "close": 171.0
+        },
+        "2025-04-07": {
+            "prediction": 179.32,
+            "actual_percentage": 2.49,
+            "predict_percentage": 4.87,
+            "market_capitalization": 1859929246433,
+            "close": 175.26
+        },
+        "2025-04-08": {
+            "prediction": 180.39,
+            "actual_percentage": -2.62,
+            "predict_percentage": 2.93,
+            "market_capitalization": 1811112205844,
+            "close": 170.66
+        },
+        "2025-04-09": {
+            "prediction": 178.47,
+            "actual_percentage": 11.98,
+            "predict_percentage": 4.58,
+            "market_capitalization": 2028029664461,
+            "close": 191.1
+        },
+        "2025-04-10": {
+            "prediction": 191.59,
+            "actual_percentage": -5.17,
+            "predict_percentage": 0.26,
+            "market_capitalization": 1923179151196,
+            "close": 181.22
+        },
+        "2025-04-11": {
+            "prediction": 183.73,
+            "actual_percentage": 2.01,
+            "predict_percentage": 1.39,
+            "market_capitalization": 1961914411663,
+            "close": 184.87
+        },
+        "2025-04-14": {
+            "prediction": 188.67,
+            "actual_percentage": -1.49,
+            "predict_percentage": 2.06,
+            "market_capitalization": 1932730311311,
+            "close": 182.12
+        },
+        "2025-04-15": {
+            "prediction": 183.82,
+            "actual_percentage": -1.39,
+            "predict_percentage": 0.93,
+            "market_capitalization": 1905880938988,
+            "close": 179.59
+        },
+        "2025-04-16": {
+            "prediction": 185.41,
+            "actual_percentage": -2.93,
+            "predict_percentage": 3.24,
+            "market_capitalization": 1850059714314,
+            "close": 174.33
+        },
+        "2025-04-17": {
+            "prediction": 179.98,
+            "actual_percentage": -0.99,
+            "predict_percentage": 3.24,
+            "market_capitalization": 1831806386094,
+            "close": 172.61
+        },
+        "2025-04-21": {
+            "prediction": 179.01,
+            "actual_percentage": -3.06,
+            "predict_percentage": 3.71,
+            "market_capitalization": 1775666789417,
+            "close": 167.32
+        },
+        "2025-04-22": {
+            "prediction": 174.66,
+            "actual_percentage": 3.5,
+            "predict_percentage": 4.39,
+            "market_capitalization": 1837855454167,
+            "close": 173.18
+        },
+        "2025-04-23": {
+            "prediction": 178.56,
+            "actual_percentage": 4.28,
+            "predict_percentage": 3.11,
+            "market_capitalization": 1916599463117,
+            "close": 180.6
+        },
+        "2025-04-24": {
+            "prediction": 183.0,
+            "actual_percentage": 3.29,
+            "predict_percentage": 1.33,
+            "market_capitalization": 1979637119877,
+            "close": 186.54
+        },
+        "2025-04-25": {
+            "prediction": 188.16,
+            "actual_percentage": 1.31,
+            "predict_percentage": 0.87,
+            "market_capitalization": 2005637500191,
+            "close": 188.99
+        }
+    }
+}
