@@ -61,9 +61,9 @@ def investor3_signal(df):
 
 
 def main():
-    tickers = ['AAPL', 'NVDA', 'TSLA', 'GOOGL']
+    tickers = ["AAPL", "NVDA", "TSLA", "GOOGL", "META", "AMZN"]
     start = '2025-01-01'
-    end   = '2025-04-15'
+    end   = '2025-06-01'
 
     for t in tickers:
         # download data

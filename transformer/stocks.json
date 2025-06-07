@@ -1,8 +1,10 @@
 {
     "stocks": [
         "AAPL",
-        "NVNA",
+        "NVDA",
         "TSLA",
-        "GOOGL"
+        "GOOGL",
+        "META",
+        "AMZN"
     ]
 }

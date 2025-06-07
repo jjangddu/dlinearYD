@@ -6,6 +6,7 @@ from botocore.exceptions import NoCredentialsError
 # .env 파일의 환경 변수 로드
 load_dotenv()
 
+
 aws_access_key_id = os.getenv("AWS_ACCESS_KEY_ID")
 aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
 aws_region = os.getenv("AWS_DEFAULT_REGION")
@@ -32,6 +33,8 @@ def upload_file_to_s3(file_name, bucket, object_name=None):
     except Exception as e:
         print(f"오류 발생: {str(e)}")
 
+
+["AAPL", "NVNA", "TSLA", "GOOGL", "META", "AMZN"]
 # 업로드할 파일 목록
 files_to_upload = [
     # "BTC-USD_data.json"
@@ -43,11 +46,17 @@ files_to_upload = [
     "NVDA_prediction.json",
     "TSLA_data.json",
     "TSLA_prediction.json",
+    "META_data.json",
+    "META_prediction.json",
+    "AMZN_data.json",
+    "AMZN_prediction.json",
     # "stocks.json"
     "AAPL_investor_results.json",
     "GOOGL_investor_results.json",
     "NVDA_investor_results.json",
-    "TSLA_investor_results.json"
+    "TSLA_investor_results.json",
+    "AMZN_investor_results.json",
+    "META_investor_results.json"
 ]
 
 print(files_to_upload)

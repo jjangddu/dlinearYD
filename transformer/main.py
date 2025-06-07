@@ -1,3 +1,16 @@
+import ssl
+# SSL 인증서 검증을 무시하도록 전역 설정
+ssl._create_default_https_context = ssl._create_unverified_context
+
+import os
+import certifi
+
+# certifi가 제공하는 CA 번들 절대 경로를
+# SSL_CERT_FILE 과 REQUESTS_CA_BUNDLE 에 반드시 지정
+os.environ['CURL_CA_BUNDLE']    = certifi.where()
+os.environ['SSL_CERT_FILE']      = certifi.where()
+os.environ['REQUESTS_CA_BUNDLE'] = certifi.where()
+
 import math
 import pandas as pd
 import yfinance as yf
@@ -10,6 +23,30 @@ import numpy as np
 from datetime import datetime, timedelta
 import json
 import copy
+import random
+
+SEED = 7777777
+
+# — Python hash‐seed 고정 (옵션)
+os.environ["PYTHONHASHSEED"] = str(SEED)
+
+# — Python 기본 random 모듈
+random.seed(SEED)
+
+# — NumPy RNG
+np.random.seed(SEED)
+
+# — PyTorch CPU RNG
+torch.manual_seed(SEED)
+
+# — PyTorch GPU RNG (CUDA 사용 시)
+if torch.cuda.is_available():
+    torch.cuda.manual_seed(SEED)
+    torch.cuda.manual_seed_all(SEED)
+
+# — cuDNN 설정: 완전한 결정론 모드
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
 
 # 필요 시, multi mode에서는 기술적 지표 계산을 위해 ta 라이브러리를 사용합니다.
 try:
@@ -202,7 +239,7 @@ def evaluate_and_retrain(model, dataloader, criterion, optimizer, train_dataload
 # JSON 저장 함수들
 ###############################
 def save_json_file1(filename, raw_df):
-    json_data = {"ticker": None, "data": {}}
+    json_data = {"ticker": filename.split("_")[0], "data": {}}
     for date in raw_df.index.strftime("%Y-%m-%d"):
         row = raw_df.loc[pd.to_datetime(date)]
         hist = {
@@ -219,7 +256,7 @@ def save_json_file1(filename, raw_df):
 
 
 def save_json_file2(filename, dates, predictions, raw_df, shares_outstanding):
-    json_data = {"ticker": None, "data": {}}
+    json_data = {"ticker": filename.split("_")[0], "data": {}}
     for i, date in enumerate(dates):
         dt = pd.to_datetime(date)
         if dt in raw_df.index:
@@ -418,8 +455,8 @@ def process_ticker(ticker, start_date, end_date, mode="single"):
     save_json_file2(output_file2, pred_dates, final_predictions, processed_data, shares_outstanding)
 
 
-for t in ["AAPL", "NVDA", "TSLA", "GOOGL"]:
+for t in ["AAPL", "NVDA", "TSLA", "GOOGL", "META", "AMZN"]:
     # mode를 "single" 또는 "multi"로 선택하여 실험하세요.
     process_ticker(t, "2020-01-01", (datetime.today() - timedelta(days=1)).strftime("%Y-%m-%d"), mode="multi")
 
-save_stocks_file("stocks.json", ["AAPL", "NVNA", "TSLA", "GOOGL"])
+save_stocks_file("stocks.json", ["AAPL", "NVDA", "TSLA", "GOOGL", "META", "AMZN"])

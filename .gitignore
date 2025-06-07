@@ -1,4 +1,5 @@
 # dotenv environment variable files
 .env
 transformer/.env
-transformer/.env
+transformer/.venv
+*.json
